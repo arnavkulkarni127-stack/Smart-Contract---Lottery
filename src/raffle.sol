@@ -16,10 +16,16 @@ contract Raffle is VRFConsumerBaseV2Plus {
     //**  Errors **/
     error Raffle__notEnoughEth();
     error Raffle__RewardNotTransferred();
+    error Raffle__CalculatingWinner();
+
+    // type declarations
+    enum RaffleState {
+        open,
+        closed
+    }
 
     //  variable Declarations
     uint256 private immutable i_entranceFee;
-    address payable[] private s_players;
     uint256 private immutable i_interval;
     // uint256 private immutable s_lastInterval;
     bytes32 private immutable i_gasLane;
@@ -29,7 +35,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
     VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
     uint32 private constant NUM_WORDS = 1;
-
+    address payable[] private s_players;
+    RaffleState private s_raffleState;
     // events
     event EnteredRaffle(address indexed player);
 
@@ -48,20 +55,19 @@ contract Raffle is VRFConsumerBaseV2Plus {
         i_callbackGasLimit = callbackGasLimit;
         i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinator);
         s_lastTimeStamp = block.timestamp;
+        s_raffleState = RaffleState.open;
     }
 
-    function fulfillRandomWords(
-        uint256 _requestId,
-        uint256[] calldata _randomWords
-    ) internal override {
+    function fulfillRandomWords(uint256 _requestId, uint256[] calldata _randomWords) internal override {
         uint256 winnerIndex = _randomWords[0] % s_players.length;
         address winner = s_players[winnerIndex];
-        (bool success, ) = winner.call{value: address(this).balance}("");
+        (bool success,) = winner.call{value: address(this).balance}("");
         if (!success) {
             revert Raffle__RewardNotTransferred();
         }
         s_lastTimeStamp = block.timestamp;
         s_players = new address payable[](0);
+        s_raffleState = RaffleState.open;
     }
 
     function enterRaffle() external payable {
@@ -75,12 +81,12 @@ contract Raffle is VRFConsumerBaseV2Plus {
     function pickWinner() public {
         if ((block.timestamp - s_lastTimeStamp) > i_interval) {
             uint256 requestId = i_vrfCoordinator.requestRandomWords(
-                i_gasLane,
-                i_subscriptionId,
-                REQUEST_CONFIRMATIONS,
-                i_callbackGasLimit,
-                NUM_WORDS
+                i_gasLane, i_subscriptionId, REQUEST_CONFIRMATIONS, i_callbackGasLimit, NUM_WORDS
             );
+            s_raffleState = RaffleState.closed;
+            if (s_raffleState != RaffleState.open) {
+                revert Raffle__CalculatingWinner();
+            }
         }
     }
 
