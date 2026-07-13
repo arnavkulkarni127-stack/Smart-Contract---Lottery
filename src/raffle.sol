@@ -20,7 +20,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     error Raffle__notEnoughEth();
     error Raffle__RewardNotTransferred();
     error Raffle__CalculatingWinner();
-    error Raffle__UpKeepNotNeeded();
+    error Raffle__UpKeepNotNeeded(uint256 balance, uint256 playerLength, uint256 raffleState);
 
     // type declarations
     enum RaffleState {
@@ -100,7 +100,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     function performUpkeep(bytes calldata performData) external {
         (bool upkeepNeeded,) = this.checkUpkeep("");
         if (!upkeepNeeded) {
-            revert Raffle__UpKeepNotNeeded();
+            revert Raffle__UpKeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
         }
         uint256 requestId = i_vrfCoordinator.requestRandomWords(
             i_gasLane, i_subscriptionId, REQUEST_CONFIRMATIONS, i_callbackGasLimit, NUM_WORDS
