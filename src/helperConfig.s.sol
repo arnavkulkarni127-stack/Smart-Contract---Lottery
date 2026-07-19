@@ -13,7 +13,7 @@ contract HelperConfig is CodeConstants {
         address vrfCoordinator;
         bytes32 gasLane;
         uint32 callbackGasLimit;
-        uint256 subscriptionId;
+        uint64 subscriptionId;
     }
     NetworkConfig public localNetworkConfig;
     mapping(uint256 => NetworkConfig) public networkConfigs;
@@ -22,7 +22,9 @@ contract HelperConfig is CodeConstants {
         networkConfigs[ETH_SEPOLIA_CHAIN_ID] = getSepoliaConfig();
     }
 
-    function getConfigByChainId(uint256 chainId) public view returns (NetworkConfig memory) {
+    function getConfigByChainId(
+        uint256 chainId
+    ) public view returns (NetworkConfig memory) {
         if (networkConfigs[chainId].vrfCoordinator != address(0)) {
             return networkConfigs[chainId];
         } else if (chainId == LOCAL_CHAIN_ID) {
@@ -33,14 +35,15 @@ contract HelperConfig is CodeConstants {
     }
 
     function getSepoliaConfig() public pure returns (NetworkConfig memory) {
-        return NetworkConfig({
-            entranceFee: 0.01 ether,
-            interval: 30,
-            vrfCoordinator: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B,
-            gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
-            callbackGasLimit: 500000,
-            subscriptionId: 0
-        });
+        return
+            NetworkConfig({
+                entranceFee: 0.01 ether,
+                interval: 30,
+                vrfCoordinator: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B,
+                gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
+                callbackGasLimit: 500000,
+                subscriptionId: 0
+            });
     }
 
     function getOrCreateAnvilEthConfig() public returns (NetworkConfig memory) {
