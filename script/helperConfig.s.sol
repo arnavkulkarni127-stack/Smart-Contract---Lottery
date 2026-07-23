@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
+import {VRFCoordinatorV2Mock} from "../lib/chainlink-brownie-contracts/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2Mock.sol";
+import {Script} from "../lib/forge-std/src/Script.sol";
+
 abstract contract CodeConstants {
     uint256 public constant ETH_SEPOLIA_CHAIN_ID = 11155111;
     uint256 public constant LOCAL_CHAIN_ID = 31337;
+    uint96 public MOCK_BASE_FEE;
+    uint96 public MOCK_GAS_PRICE_LINK;
+    uint16 public MOCK_MAX_CONSUMERS;
 }
 
-contract HelperConfig is CodeConstants {
+contract HelperConfig is CodeConstants, Script {
     struct NetworkConfig {
         uint256 entranceFee;
         uint256 interval;
@@ -24,11 +30,11 @@ contract HelperConfig is CodeConstants {
 
     function getConfigByChainId(
         uint256 chainId
-    ) public view returns (NetworkConfig memory) {
+    ) public returns (NetworkConfig memory) {
         if (networkConfigs[chainId].vrfCoordinator != address(0)) {
             return networkConfigs[chainId];
         } else if (chainId == LOCAL_CHAIN_ID) {
-            return networkConfigs[LOCAL_CHAIN_ID];
+            return getOrCreateAnvilEthConfig();
         } else {
             revert("invalid chain id");
         }
@@ -50,11 +56,17 @@ contract HelperConfig is CodeConstants {
         if (localNetworkConfig.vrfCoordinator != address(0)) {
             return localNetworkConfig;
         }
+        vm.startBroadcast();
+        VRFCoordinatorV2Mock mockCoordinator = new VRFCoordinatorV2Mock(
+            MOCK_BASE_FEE,
+            MOCK_GAS_PRICE_LINK
+        );
+        vm.stopBroadcast();
 
         localNetworkConfig = NetworkConfig({
             entranceFee: 0.01 ether,
             interval: 30,
-            vrfCoordinator: address(0),
+            vrfCoordinator: address(mockCoordinator),
             gasLane: bytes32(0),
             callbackGasLimit: 500000,
             subscriptionId: 0
@@ -62,7 +74,7 @@ contract HelperConfig is CodeConstants {
         return localNetworkConfig;
     }
 
-    function getConfig() public view returns (NetworkConfig memory) {
+    function getConfig() public returns (NetworkConfig memory) {
         return getConfigByChainId(block.chainid);
     }
 }
