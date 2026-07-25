@@ -12,6 +12,7 @@ import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFCo
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 import {VRFCoordinatorV2Interface} from "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
 import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
+import {console} from "forge-std/console.sol";
 
 contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     //**  Errors **/
@@ -27,6 +28,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     // type declarations
     enum RaffleState {
         open,
+        calculating,
         closed
     }
 
@@ -67,6 +69,11 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     function enterRaffle() external payable {
         if (msg.value < i_entranceFee) {
             revert Raffle__notEnoughEth();
+        }
+        console.log("raffleState in enterRaffle:", uint256(s_raffleState));
+        console.log("RaffleState.open value:", uint256(RaffleState.open));
+        if (s_raffleState != RaffleState.open) {
+            revert Raffle__CalculatingWinner();
         }
         s_players.push(payable(msg.sender));
         emit EnteredRaffle(msg.sender);
@@ -120,10 +127,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
             i_callbackGasLimit,
             NUM_WORDS
         );
-        s_raffleState = RaffleState.closed;
-        if (s_raffleState != RaffleState.open) {
-            revert Raffle__CalculatingWinner();
-        }
+        s_raffleState = RaffleState.calculating;
     }
 
     function getEntranceFee() external view returns (uint256) {
@@ -136,5 +140,9 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
 
     function getRaffleState() external view returns (RaffleState) {
         return s_raffleState;
+    }
+
+    function getInterval() external view returns (uint256) {
+        return i_interval;
     }
 }

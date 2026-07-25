@@ -35,9 +35,10 @@ contract TestRaffle is Test {
     /// @dev FIXED: Removed the erroneous require(msg.value...) check
     /// The entranceFee validation already happens in enterRaffle()
     function testRaffle_addPlayer() public {
-        vm.prank(PLAYER);
+        vm.startPrank(PLAYER);
         raffle.enterRaffle{value: raffle.getEntranceFee()}();
         assert(raffle.getPlayer(0) == address(PLAYER));
+        vm.stopPrank();
     }
 
     function testRaffle_raffleStateIsOpen() public view {
@@ -63,5 +64,23 @@ contract TestRaffle is Test {
         console.log("Expected:", PLAYER);
         console.log("Stored:  ", stored);
         console.log("Msg sender in test:", msg.sender);
+    }
+
+    function testDontAllowPlayersToEnterWhileRaffleIsCalculating() public {
+        //arrange
+        uint256 entranceFee = raffle.getEntranceFee();
+
+        vm.startPrank(PLAYER);
+        raffle.enterRaffle{value: raffle.getEntranceFee()}();
+        vm.stopPrank();
+        vm.warp(block.timestamp + raffle.getInterval() + 1);
+        vm.roll(block.number + 1);
+        raffle.performUpkeep("");
+
+        //act
+        vm.expectRevert(Raffle.Raffle__CalculatingWinner.selector);
+        vm.prank(PLAYER);
+
+        raffle.enterRaffle{value: entranceFee}();
     }
 }
