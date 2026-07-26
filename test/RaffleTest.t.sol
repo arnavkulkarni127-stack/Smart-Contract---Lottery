@@ -7,6 +7,7 @@ import {Script} from "../lib/forge-std/src/Script.sol";
 import {Test} from "../lib/forge-std/src/Test.sol";
 import {DeployRaffle} from "../script/Deploy.s.sol";
 import {console} from "forge-std/console.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 contract TestRaffle is Test {
     Raffle raffle;
@@ -83,4 +84,67 @@ contract TestRaffle is Test {
 
         raffle.enterRaffle{value: entranceFee}();
     }
+
+    function testCheckUpKeepReturnsFalseIfRaffleIsntOpen() public {
+        //arrange
+
+        vm.startPrank(PLAYER);
+        raffle.enterRaffle{value: raffle.getEntranceFee()}();
+        vm.stopPrank();
+        vm.warp(block.timestamp + raffle.getInterval() + 1);
+        vm.roll(block.number + 1);
+        raffle.performUpkeep("");
+
+        //act
+        (bool upKeepneeded, ) = raffle.checkUpkeep("");
+
+        //assert
+        assert(!upKeepneeded);
+    }
+
+    function testPerformUpKeepCanOnlyRunIfCheckkUpKeepIsTrue() public {
+        // arrange
+        vm.startPrank(PLAYER);
+        raffle.enterRaffle{value: raffle.getEntranceFee()}();
+        vm.stopPrank();
+        vm.warp(block.timestamp + raffle.getInterval() + 1);
+        vm.roll(block.number + 1);
+
+        //act/assert
+        raffle.performUpkeep("");
+    }
+
+    function testPerformUpKeepRunsOnlyIfCheckUpKeepReverts() public {
+        // Arrange
+        uint256 balance = 0;
+        uint256 playerNum = 0;
+        Raffle.RaffleState rState = raffle.getRaffleState();
+
+        // act/assert
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Raffle.Raffle__UpKeepNotNeeded.selector,
+                balance,
+                playerNum,
+                rState
+            )
+        );
+        raffle.performUpkeep("");
+    }
+
+    // function testPerformUpKeepUpdatesRaffleStateAndEmitsRequestId() public {
+    //     // arrange
+
+    //     vm.startPrank(PLAYER);
+    //     raffle.enterRaffle{value: raffle.getEntranceFee()}();
+    //     vm.stopPrank();
+    //     vm.warp(block.timestamp + raffle.getInterval() + 1);
+    //     vm.roll(block.number + 1);
+
+    //     // act
+    //     vm.recordLogs();
+    //     raffle.performUpkeep("");
+    //     Vm.Log[] memory entries = vm.getRecordedLogs();
+    //     bytes32 requestId = entries[1].topics[1];
+    // }
 }
